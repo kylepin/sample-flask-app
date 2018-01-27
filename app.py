@@ -1,82 +1,108 @@
+from bson.errors import InvalidId
 from flask import Flask, jsonify, request
-from flask_pymongo import PyMongo
-from jsonschema import validate
+from flask_pymongo import PyMongo, ObjectId
+from jsonschema import validate, ValidationError
 
 import config
 from helpers import make_serializable
 
-logger = app.logger
-app = Flask(__name__)
+mongo = PyMongo()
 
-app.config['MONGO_DBNAME'] = config.MONGO_DBNAME
-mongo = PyMongo(app)
+def create_app(config):
+    app = Flask(__name__)
 
-@app.route('/')
-def hello_world():
-    return "Welcome to my RESTful API"
+    app.config.from_object(config)
+    mongo.init_app(app)
 
-@app.route('/books', methods=['GET'])
-def get_books():
-    books = mongo.db.books
-    output = []
-    for book in books.find():
-        output.append(make_serializable(book))
+    CREATE_BOOK_SCHEMA = {
+        '$schema': 'http://json-schema.org/draft-06/schema#',
+        'title': 'Book',
+        'type': 'object',
+        'properties': {
+            'author': {'type': 'string'},
+            'title': {'type': 'string'},
+            'read_status': {'type': 'string',
+                            'enum': ['read', 'reading', 'want-to-read']},
+            'isbn': {'type': 'string'},
+        },
+        'required': ['author', 'title'],
+        'additionalProperties': False,
+    }
 
-    return jsonify(output)
+    UPDATE_BOOK_SCHEMA = {
+        '$schema': 'http://json-schema.org/draft-06/schema#',
+        'title': 'Book',
+        'description': 'schema for updating a book document',
+        'type': 'object',
+        'properties': {
+            'author': {'type': 'string'},
+            'title': {'type': 'string'},
+            'read_status': {'type': 'string',
+                            'enum': ['read', 'reading', 'want-to-read']},
+            'isbn': {'type': 'string'},
+        },
+        'additionalProperties': False,
+    }
 
-#  request must contain Content-Type: application/json or request.json will not work as expected
-@app.route('/books', methods=['POST'])
-def add_book():
-    books = mongo.db.books
-    book = request.json
-    validate(book)
-    book_id = books.insert({
-    'author': book['author'],
-    'title': book['title'],
-    'read_status': book['read_status'],
-    'isbn': book['isbn'],
-    })
+    @app.route('/')
+    def hello_world():
+        return "Welcome to my RESTful API"
 
-    new_book = books.find_one({'_id': book_id})
-    output = make_serializable(new_book)
+    @app.route('/books', methods=['GET'])
+    def get_books():
+        books = mongo.db.books
+        output = []
+        for book in books.find():
+            output.append(make_serializable(book))
 
-    response = jsonify(output)
-    response.status_code = 201
-    return response
+        return jsonify(output)
 
-@app.route('/books/<id>', methods=['GET'])
-def get_book(id):
-    books = mongo.db.books
+    #  request must contain Content-Type: application/json or request.json will not work as expected
+    @app.route('/books', methods=['POST'])
+    def add_book():
+        books = mongo.db.books
+        book = request.json
+        try:
+            validate(book, CREATE_BOOK_SCHEMA)
+        except ValidationError as e:
+            return 'ValidationError: {}'.format(e.message), 500
 
-    book = books.find_one_or_404({'_id': id })
-    output = make_serializable(book)
+        book_id = books.insert(book)
 
-    return jsonify(output)
+        new_book = books.find_one({'_id': book_id})
+        output = make_serializable(new_book)
 
-@app.route('/books/<id>', methods=['PUT'])
-def update_book(id):
-    books = mongo.db.books
+        response = jsonify(output)
+        response.status_code = 201
+        return response
 
-    book = {}
-    for key, book_attribute in request.json.items():
-        book[key] = book_attribute
-    books.update_one(
-    {'_id': id },
-    {'$set': book},
-    )
+    @app.route('/books/<id>', methods=['GET'])
+    def get_book(id):
+        books = mongo.db.books
 
-    updated_book = books.find_one_or_404({'_id': id})
-    output = make_serializable(updated_book)
+        try:
+            book = books.find_one_or_404({'_id': ObjectId(id) })
+        except InvalidId:
+            return 'InvalidId: {} is not a valid ID'.format(id), 400
+        output = make_serializable(book)
 
-    return jsonify(output)
+        return jsonify(output)
 
-@app.route('/books/<id>', methods=['DELETE'])
-def delete_book(id):
-    books = mongo.db.books
+    @app.route('/books/<id>', methods=['DELETE'])
+    def delete_book(id):
+        books = mongo.db.books
+        try:
+            result = books.delete_one({'_id': ObjectId(id)})
+        except InvalidId:
+            return 'InvalidId: {} is not a valid ID'.format(id), 400
 
-    result = books.delete_one({'_id': id})
+        if result.deleted_count == 1:
+            return ('', 204)
 
-    if result.deleted_count == 1:
-        return ('',200)
+        return ('', 404)
 
-    return ('',404)
+    return app
+
+if __name__ == '__main__':
+    app = create_app(config.DevelopmentConfig)
+    app.run(debug=True)
