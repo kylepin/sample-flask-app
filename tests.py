@@ -26,7 +26,7 @@ class TestIndex(TestBooksAPIBase):
     def test_index_page(self):
         response = self.client.get('/')
         self.assertEquals(200, response.status_code)
-        self.assertEquals(b'Welcome to my RESTful API', response.data)
+        self.assertEquals(b'"Welcome to my RESTful API"\n', response.data)
 
 
 class TestGetBooksCollection(TestBooksAPIBase):
