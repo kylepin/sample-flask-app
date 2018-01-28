@@ -11,15 +11,19 @@ HEADERS = {'content-type': 'application/json'}
 
 
 class TestBooksAPIBase(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app(config.TestConfig)
-        self.app_context = self.app.app_context()
-        self.app_context.push()
-        self.client = self.app.test_client()
-        mongo.db.books.remove({})
+    @classmethod
+    def setUpClass(cls):
+        cls.app = create_app(config.TestConfig)
+        cls.app_context = cls.app.app_context()
+        cls.app_context.push()
+        cls.client = cls.app.test_client()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.app_context.pop()
 
     def tearDown(self):
-        self.app_context.pop()
+        mongo.db.books.remove({})
 
 
 class TestIndex(TestBooksAPIBase):
@@ -35,7 +39,6 @@ class TestGetBooksCollection(TestBooksAPIBase):
         self.assertEquals(response.status_code, 200)
         self.assertEquals(json.loads(response.data), [])
 
-    # @unittest.skip("Need to fix payload equality assertion")
     def test_get_collection_with_contents(self):
         documents_to_insert = [
             {'author': 'CS Lewis', 'title': 'Screwtape Letters'},
