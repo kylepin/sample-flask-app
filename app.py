@@ -8,6 +8,7 @@ from helpers import make_serializable
 
 mongo = PyMongo()
 
+
 def create_app(config):
     app = Flask(__name__)
 
@@ -29,21 +30,6 @@ def create_app(config):
         'additionalProperties': False,
     }
 
-    UPDATE_BOOK_SCHEMA = {
-        '$schema': 'http://json-schema.org/draft-06/schema#',
-        'title': 'Book',
-        'description': 'schema for updating a book document',
-        'type': 'object',
-        'properties': {
-            'author': {'type': 'string'},
-            'title': {'type': 'string'},
-            'read_status': {'type': 'string',
-                            'enum': ['read', 'reading', 'want-to-read']},
-            'isbn': {'type': 'string'},
-        },
-        'additionalProperties': False,
-    }
-
     @app.route('/')
     def hello_world():
         return "Welcome to my RESTful API"
@@ -57,7 +43,6 @@ def create_app(config):
 
         return jsonify(output)
 
-    #  request must contain Content-Type: application/json or request.json will not work as expected
     @app.route('/books', methods=['POST'])
     def add_book():
         books = mongo.db.books
@@ -81,7 +66,7 @@ def create_app(config):
         books = mongo.db.books
 
         try:
-            book = books.find_one_or_404({'_id': ObjectId(id) })
+            book = books.find_one_or_404({'_id': ObjectId(id)})
         except InvalidId:
             return 'InvalidId: {} is not a valid ID'.format(id), 400
         output = make_serializable(book)
@@ -102,6 +87,7 @@ def create_app(config):
         return ('', 404)
 
     return app
+
 
 if __name__ == '__main__':
     app = create_app(config.DevelopmentConfig)

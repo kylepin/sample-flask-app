@@ -43,26 +43,27 @@ class TestGetBooksCollection(TestBooksAPIBase):
             {'author': 'CS Lewis', 'title': 'The Great Divorce'},
             {'author': 'CS Lewis', 'title': 'The Weight of Glory'},
         ]
-
-        # document_tuples = set(tuple(sorted(document.items, key=0)[1]) for document in documents_to_insert)
         mongo.db.books.insert_many(documents_to_insert)
 
         for doc in documents_to_insert:
             doc['_id'] = str(doc['_id'])
 
-        expected_documents = sorted(documents_to_insert, key=lambda doc: doc['_id'])
+        expected_documents = sorted(documents_to_insert,
+                                    key=lambda doc: doc['_id'])
 
         response = self.client.get(BOOKS_COLLECTION_API_URL)
         self.assertEquals(response.status_code, 200)
 
         returned_documents = json.loads(response.data)
-        returned_documents = sorted(returned_documents, key=lambda doc: doc['_id'])
+        returned_documents = sorted(returned_documents,
+                                    key=lambda doc: doc['_id'])
 
         self.assertListEqual(expected_documents, returned_documents,
-        'The returned documents did not match the documents inserted.')
+                             'The returned documents did not match the '
+                             'documents inserted.')
 
         ids_to_delete = [doc['_id'] for doc in expected_documents]
-        mongo.db.books.remove({'_id': {'$in': ids_to_delete }})
+        mongo.db.books.remove({'_id': {'$in': ids_to_delete}})
 
 
 class TestBooksPost(TestBooksAPIBase):
@@ -72,60 +73,71 @@ class TestBooksPost(TestBooksAPIBase):
             'author': 'Michael G Scott',
             'title': 'Somehow I Manage',
         }
-        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS, data=json.dumps(payload))
+        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS,
+                                    data=json.dumps(payload))
         returned_book = json.loads(response.data)
 
         book_id = returned_book['_id']
         del returned_book['_id']
 
-        self.assertDictEqual(payload, returned_book, 'Book returned in response from API did not match the payload.')
+        self.assertDictEqual(payload, returned_book,
+                             'Book returned in response from API did not '
+                             'match the payload.')
 
         mongo.db.books.remove({'_id': book_id})
 
     def test_add_book_with_all_fields(self):
-        """Test adding a book with all fields, author, title, isbn, read status."""
+        """Test adding a book with all fields, author, title, isbn, read
+        status."""
         payload = {
             'author': 'Michael G Scott',
             'title': 'Somehow I Manage',
             'read_status': 'want-to-read',
             'isbn': '9781463586621'
         }
-        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS, data=json.dumps(payload))
+        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS,
+                                    data=json.dumps(payload))
         returned_book = json.loads(response.data)
 
         book_id = returned_book['_id']
         del returned_book['_id']
 
-        self.assertDictEqual(payload, returned_book, 'Book returned in response from API did not match the payload.')
+        self.assertDictEqual(payload, returned_book,
+                             'Book returned in response from API did not match'
+                             'the payload.')
 
         mongo.db.books.remove({'_id': book_id})
 
-
     def test_add_book_with_missing_field(self):
-        """Test adding a book with the author field missing"""
+        """Test adding a book with the author field missing."""
         payload = {
             'title': 'Somehow I Manage',
         }
 
-        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS, data=json.dumps(payload))
-        self.assertEqual(500, response.status_code, 'Failed to catch missing author field.')
+        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS,
+                                    data=json.dumps(payload))
+        self.assertEqual(500, response.status_code,
+                         'Failed to catch missing author field.')
 
-        payload = {
-            'author': 'Michael G Scott',
-        }
-        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS, data=json.dumps(payload))
-        self.assertEqual(500, response.status_code, 'Failed to catch missing title field.')
+        payload = {'author': 'Michael G Scott'}
+        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS,
+                                    data=json.dumps(payload))
+        self.assertEqual(500, response.status_code,
+                         'Failed to catch missing title field.')
 
     def test_add_book_with_extra_field(self):
         """Test adding a book with an extra field."""
         payload = {
-        'author': 'Michael G Scott',
-        'title': 'Somehow I Manage',
-        'asdf': 'asdf asdf asdf',
+            'author': 'Michael G Scott',
+            'title': 'Somehow I Manage',
+            'asdf': 'asdf asdf asdf',
         }
 
-        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS, data=json.dumps(payload))
-        self.assertEqual(500, response.status_code, 'Failed to catch extra, unvalidated field.')
+        response = self.client.post(BOOKS_COLLECTION_API_URL, headers=HEADERS,
+                                    data=json.dumps(payload))
+        self.assertEqual(500, response.status_code,
+                         'Failed to catch extra, unvalidated field.')
+
 
 class TestBooksGet(TestBooksAPIBase):
     def test_get_book(self):
@@ -178,7 +190,9 @@ class TestBooksDelete(TestBooksAPIBase):
         url = BOOKS_API_URL.format(book['_id'])
         response = self.client.delete(url)
 
-        self.assertEqual(204, response.status_code, 'Deleting "_id": {} was unsuccessful'.format(book['_id']))
+        self.assertEqual(
+            204, response.status_code,
+            'Deleting "_id": {} was unsuccessful'.format(book['_id']))
 
     def test_delete_nonexistent_book(self):
         """Test deleting a book that does not exist."""
@@ -186,7 +200,8 @@ class TestBooksDelete(TestBooksAPIBase):
         url = BOOKS_API_URL.format(id)
         response = self.client.delete(url)
 
-        self.assertEqual(404, response.status_code, 'Failed to respond with 404 status code.')
+        self.assertEqual(404, response.status_code,
+                         'Failed to respond with 404 status code.')
 
     def test_delete_invalid_id(self):
         """Test what happens when I pass an invalid ID."""
@@ -194,4 +209,5 @@ class TestBooksDelete(TestBooksAPIBase):
         url = BOOKS_API_URL.format(id)
         response = self.client.delete(url)
 
-        self.assertEqual(400, response.status_code, 'Failed to respond with 400 status code.')
+        self.assertEqual(400, response.status_code,
+                         'Failed to respond with 400 status code.')

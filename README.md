@@ -1,7 +1,6 @@
 # sample-flask-app
-Small project to practice building an API with Flask
 
-Built with Python 3
+Built with `Python 3.6.1`.  
 To install requirements and run:
 ```bash
 pip install -r requirements.txt
@@ -13,4 +12,3 @@ To run tests:
 pip install -r dev-requirements.txt
 nosetests functional_tests.py
 ```
-if you want to run tests.
